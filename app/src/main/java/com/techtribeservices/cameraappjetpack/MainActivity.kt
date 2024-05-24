@@ -3,13 +3,20 @@ package com.techtribeservices.cameraappjetpack
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.os.Bundle
+import android.view.ViewGroup.LayoutParams.MATCH_PARENT
+import android.widget.LinearLayout
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.ExperimentalGetImage
+import androidx.camera.core.ImageCapture
+import androidx.camera.core.ImageCaptureException
+import androidx.camera.core.ImageProxy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -32,12 +39,23 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.content.ContextCompat
 import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.LifecycleCameraController
 import androidx.camera.view.PreviewView
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
@@ -46,6 +64,9 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import com.techtribeservices.cameraappjetpack.ui.theme.CameraAppJetPackTheme
 import com.google.common.util.concurrent.ListenableFuture
+import kotlinx.coroutines.launch
+import java.io.File
+
 // import com.sun.istack.Builder
 
 class MainActivity : ComponentActivity() {
@@ -83,7 +104,7 @@ fun AppBar() {
 
 @Composable
 fun Layout(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     var hasPermission by remember {
         mutableStateOf(false)
@@ -120,60 +141,97 @@ fun Layout(
 
 @Composable
 fun CameraView() {
-    lateinit var cameraProviderFuture: ListenableFuture<ProcessCameraProvider>
-    val localContext = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
-    val lensFacing: Int = CameraSelector.LENS_FACING_BACK
-    val preview: androidx.camera.core.Preview = androidx.camera.core.Preview.Builder().build()
-//    val previewView = remember {
-//        previewView(localContext)
-//    }
-    val previewView = remember {
-        PreviewView(localContext)
+    val context = LocalContext.current
+    val lifeCycleOwner = LocalLifecycleOwner.current
+    val cameraController = remember {LifecycleCameraController(context)}
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState()}
+    val source = remember {
+        mutableStateOf(false)
     }
+    var sourceImg: Bitmap? = null 
 
-    var cameraSelector: CameraSelector = CameraSelector.Builder()
-        .requireLensFacing(lensFacing)
-        .build()
+    Scaffold(
+        modifier = Modifier,
+        snackbarHost =  {
+            SnackbarHost(hostState = snackbarHostState)
+        },
+        floatingActionButton = {
+            ExtendedFloatingActionButton(
+                onClick = {
 
-    LaunchedEffect(Unit) {
-        cameraProviderFuture = ProcessCameraProvider.getInstance(localContext)
-        cameraProviderFuture.addListener(Runnable {
-            val cameraProvider = cameraProviderFuture.get()
-            cameraProvider.unbindAll()
-            cameraProvider.bindToLifecycle(lifecycleOwner, cameraSelector, preview)
-            preview.setSurfaceProvider(previewView.surfaceProvider)
-            // bind preview
-            //bindPreview(cameraProvider, lifecycle)
-        }, ContextCompat.getMainExecutor(localContext))
-    }
+                    val file = File.createTempFile("img_",".jpg")
+                    val outputFileOptions = ImageCapture.OutputFileOptions.Builder(file).build()
 
-    Column (
-        modifier = Modifier
-            .fillMaxSize(),
-        // verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
+                    val mainExecutor = ContextCompat.getMainExecutor(context)
+                    cameraController.takePicture(
+                        outputFileOptions,
+                        mainExecutor,
+                        object : ImageCapture.OnImageSavedCallback {
+
+
+                            override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
+                                println("URI - ${outputFileResults.savedUri}")
+                            }
+
+                            override fun onError(exception: ImageCaptureException) {
+
+                            }
+                        })
+//                        object : ImageCapture.OnImageCapturedCallback() {
+//                            // @androidx.annotation.OptIn(ExperimentalGetImage::class)
+//                            override fun onCaptureSuccess(image: ImageProxy) {
+//                                super.onCaptureSuccess(image)
+//                               val correctedBitmap: Bitmap = image
+//                                   .toBitmap()
+//                                   // .rotateBitmap(image.imageInfo.rotationDegrees)
+//
+//                                image.close()
+////                                sourceImg = correctedBitmap
+////                                source.value = true
+//                                println(correctedBitmap)
+//                            }
+//
+//                            override fun onError(exception: ImageCaptureException) {
+//                                super.onError(exception)
+//                                scope.launch {
+//                                    snackbarHostState.showSnackbar("Error capturing image ${exception.toString()}")
+//                                }
+//                            }
+//                        })
+
+                }) {
+                Text(text = "Capture")
+            }
+        }
+    ) {paddingValues: PaddingValues ->
         AndroidView(
-            factory = { previewView },
             modifier = Modifier
-                .fillMaxSize())
+                .fillMaxWidth()
+                .height(250.dp)
+                .padding(paddingValues),
+            factory = {context ->
+                PreviewView(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)
+                    setBackgroundColor(1)
+                    scaleType = PreviewView.ScaleType.FILL_CENTER
+                }.also {previewView ->
+                    previewView.controller = cameraController
+                    cameraController.bindToLifecycle(lifeCycleOwner)
+                }
+            })
 
-        Spacer(modifier = Modifier.height(50.dp))
-        Button(onClick = { /*TODO*/ }) {
-            Text(text = "Capture")
+        when(source.value) {
+            true -> Image(bitmap = sourceImg as ImageBitmap, contentDescription = null,
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+            false -> Text(text = "No captured image")
         }
     }
+
+
 }
 
-fun bindPreview(cameraProvider: ProcessCameraProvider,
-                lifecycle: LifecycleOwner) {
-    val lensFacing: Int = CameraSelector.LENS_FACING_BACK
-    val preview: androidx.camera.core.Preview = androidx.camera.core.Preview.Builder().build()
-    var cameraSelector: CameraSelector = CameraSelector.Builder()
-        .requireLensFacing(lensFacing)
-        .build()
-}
+
 
 @Composable
 fun ErrorView() {

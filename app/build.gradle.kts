@@ -51,7 +51,7 @@ android {
 
 dependencies {
     //implementation(libs.compose.preview.renderer)
-    val camerax_version = "1.2.2"
+    val camerax_version = "1.3.0"
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
