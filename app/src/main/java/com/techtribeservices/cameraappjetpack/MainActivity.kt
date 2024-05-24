@@ -1,5 +1,8 @@
 package com.techtribeservices.cameraappjetpack
 
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -22,7 +25,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.core.content.ContextCompat
 import com.techtribeservices.cameraappjetpack.ui.theme.CameraAppJetPackTheme
 
 class MainActivity : ComponentActivity() {
@@ -64,9 +69,22 @@ fun Layout(
     var hasPermission by remember {
         mutableStateOf(false)
     }
+    val localContext = LocalContext.current
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()) { isGranted ->
+        hasPermission = isGranted
+    }
 
     LaunchedEffect(Unit) {
-        println("launched effect ${hasPermission}")
+        val result = ContextCompat.checkSelfPermission(
+            localContext,
+            android.Manifest.permission.CAMERA
+        ) == PackageManager.PERMISSION_GRANTED
+        hasPermission = result
+
+        if(!hasPermission) {
+            permissionLauncher.launch(Manifest.permission.CAMERA)
+        }
     }
 
     when(hasPermission) {
@@ -99,9 +117,12 @@ fun ErrorView() {
 }
 
 // handle camera permission
-private fun requestPermission() {
-
+private fun requestPermission(context: Context) {
+    val result = ContextCompat.checkSelfPermission(
+        context,
+        Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
 }
+
 
 @Preview(showBackground = true)
 @Composable
