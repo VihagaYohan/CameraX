@@ -157,8 +157,7 @@ fun CameraView() {
         AndroidView(
             factory = { previewView },
             modifier = Modifier
-                .width(250.dp)
-                .height(250.dp))
+                .fillMaxSize())
 
         Spacer(modifier = Modifier.height(50.dp))
         Button(onClick = { /*TODO*/ }) {
